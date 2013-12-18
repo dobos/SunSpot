@@ -85,7 +85,6 @@ CREATE TABLE [Spot]
 (
 --/ <summary>Contains info on individual spots</summary>
 --/ <remarks></remarks>
-	[SpotID] int NOT NULL,			--/ <column>Unique ID of the spot</column>
 	[FrameID] int NOT NULL,			--/ <column>Reference to the frame</column>
 	[GroupID] int NOT NULL,			--/ <column>Reference to the group (NOAA standard)</column>
 	[GroupRev] varchar(2) NOT NULL,	--/ <column>Revised group ID extension</column>
@@ -108,7 +107,10 @@ CREATE TABLE [Spot]
 
 	CONSTRAINT [PK_Spot] PRIMARY KEY CLUSTERED 
 	(
-		[SpotID]
+		[FrameID],
+		[GroupID],
+		[GroupRev],
+		[Number]
 	)  ON [PRIMARY]
 ) ON [PRIMARY]
 

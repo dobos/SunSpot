@@ -25,7 +25,7 @@ CREATE TABLE [Frame]
 --/ <remarks></remarks>
 	[FrameID] int NOT NULL,			--/ <column>Unique ID of the frame</column>
 	[Time] datetime2 NOT NULL,		--/ <column>Time of observation (UTC)</column>
-	[JD] real NOT NULL,				--/ <column>Julian Date of observation</column>
+	[JD] float NOT NULL,			--/ <column>Julian Date of observation</column>
 	[ObservatoryID] tinyint NOT NULL,--/ <column>ID of the observatory</column>
 	[Proj_Area_U] real NULL,		--/ <column unit="">Total projected area of the Umbra of the spots</column>
 	[Proj_Area_UP] real NULL,		--/ <column unit="">Total projected area of the Umbra and the Penumbra of the spots</column>

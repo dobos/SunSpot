@@ -38,7 +38,6 @@ GO
 
 CREATE TABLE [Frame_Load]
 (
-	[FrameID] int NOT NULL,
 	[Year] int NOT NULL,
 	[Month] int NOT NULL,
 	[Day] int NOT NULL,
@@ -58,12 +57,12 @@ CREATE TABLE [Frame_Load]
 GO
 
 BULK INSERT [Frame_Load]
-FROM 'C:\data\Temp\vo\napfolt\frame_DPDfull.txt' 
+FROM 'C:\data\Temp\vo\napfolt\frame_DPD1977.txt' 
 WITH ( 
 	LASTROW = 7800,			-- change this when file becomes OK
 	DATAFILETYPE = 'char',
 	FIELDTERMINATOR = ' ',
-	ROWTERMINATOR = '\n',
+	ROWTERMINATOR = '0x0A',
 	TABLOCK
 )
 
@@ -76,13 +75,15 @@ GO
 INSERT [Frame] WITH (TABLOCKX)
 	([FrameID],
 	 [Time],
-	 [JD], [ObservatoryID],
+	 [JD],
+	 [ObservatoryID],
 	 [Proj_Area_U], [Proj_Area_UP], [Area_U], [Area_UP],
 	 [P0], [B0])
 SELECT
-	[FrameID],
-	DATETIME2FROMPARTS ( [Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0),
-	[JD], obs.ObservatoryID,
+	dbo.fFrameID(obs.ObservatoryID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0))),
+	DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0),
+	dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0)),
+	obs.ObservatoryID,
 	[Proj_Area_U], [Proj_Area_UP], [Area_U], [Area_UP],
 	[P0], [B0]
 FROM [Frame_Load]
@@ -99,7 +100,7 @@ GO
 
 CREATE TABLE [Group_Load]
 (
-	[FrameID] int NOT NULL,
+	[Observatory] char(4) NOT NULL,
 	[Year] int NOT NULL,
 	[Month] int NOT NULL,
 	[Day] int NOT NULL,
@@ -124,23 +125,16 @@ CREATE TABLE [Group_Load]
 GO
 
 BULK INSERT Group_Load
-FROM 'C:\data\Temp\vo\napfolt\group_DPDfull.txt' 
+FROM 'C:\data\Temp\vo\napfolt\group_DPD1977.txt' 
 WITH ( 
 	CODEPAGE = 'ACP',
    DATAFILETYPE = 'char',
    FIELDTERMINATOR = ' ',
-   ROWTERMINATOR = '\n',
+   ROWTERMINATOR = '0x0A',
    TABLOCK
 )
 
 GO
-
--- Verify key uniqueness
-
-SELECT [FrameID], [GroupID], [GroupRev], COUNT(*)
-FROM [Group_Load]
-GROUP BY [FrameID], [GroupID], [GroupRev]
-HAVING COUNT(*) > 1
 
 -- Merge groups
 
@@ -157,15 +151,17 @@ INSERT INTO [dbo].[Group] WITH (TABLOCKX)
 	[CX], [CY], [CZ], [HtmID]
 	)
 SELECT DISTINCT
-	[GroupID], [GroupRev], [FrameID],
+	[GroupID], [GroupRev],
+	dbo.fFrameID(obs.ObservatoryID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0))),
 	[Proj_Area_U], [Proj_Area_UP], [Area_U], [Area_UP],
 	[Lat], [Lon], [LCM], [Polar_Angle], [Polar_Radius],
 	NULL,	-- B_U
 	NULL,	-- B_UP
 	cc.x, cc.y, cc.z, BestDR7.dbo.fHtmEq(lon, lat)
 FROM [dbo].[Group_Load]
+INNER JOIN Observatory obs ON obs.Name = [Observatory]
 CROSS APPLY BestDR7.dbo.fHtmEqToXyz(lon, lat) cc
-WHERE FrameID NOT IN (54794257, 55594054)		-- delete if fixed
+--WHERE FrameID NOT IN (54794257, 55594054)		-- delete if fixed
 
 GO
 
@@ -178,7 +174,7 @@ GO
 
 CREATE TABLE [Spot_Load]
 (
-	[FrameID] int NOT NULL,
+	[Observatory] char(4) NOT NULL,
 	[Year] int NOT NULL,
 	[Month] int NOT NULL,
 	[Day] int NOT NULL,
@@ -205,7 +201,7 @@ CREATE TABLE [Spot_Load]
 GO
 
 BULK INSERT Spot_Load
-FROM 'C:\data\Temp\vo\napfolt\spot_DPDfull.txt' 
+FROM 'C:\data\Temp\vo\napfolt\spot_DPD1977.txt' 
 WITH ( 
 	CODEPAGE = 'ACP',
    DATAFILETYPE = 'char',

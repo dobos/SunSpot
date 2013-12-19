@@ -3,7 +3,15 @@ input="$1"
 
 # create frame file and filter out rows starting with d or h
 printf "" > "frame_$input"
-cat $input|awk '{if (($1=="d")||($1=="h")) print $0}'|sed 's/d //'|sed 's/h //'|while read line 
+cat $input|awk '{
+if (($1=="d")||($1=="h")) {
+  #check for errors in SOHO entries at column 15
+  if ((x = index($15, "-")) > 1) {
+	$15 = substr($15, x + 1, length($15))
+  }
+  print $0
+  }
+}'|sed 's/d //'|sed 's/h //'|while read line 
 do
 echo $line >> "frame_$input"
 done

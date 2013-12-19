@@ -59,7 +59,7 @@ GO
 BULK INSERT [Frame_Load]
 FROM 'C:\data\Temp\vo\napfolt\frameall.txt' 
 WITH ( 
-	LASTROW = 7800,			-- change this when file becomes OK
+	--LASTROW = 7800,			-- change this when file becomes OK
 	DATAFILETYPE = 'char',
 	FIELDTERMINATOR = ' ',
 	ROWTERMINATOR = '0x0A',
@@ -68,10 +68,55 @@ WITH (
 
 GO
 
+-- Verify invalid dates
+
+SELECT *
+FROM [Frame_Load]
+WHERE [Hour] < 0 OR [Hour] > 23 OR [Minute] < 0 OR [Minute] > 59 OR [Second] < 0 OR [Second] > 59
+
+
+-- Fix rows with second = 60
+
+UPDATE [Frame_Load]
+SET [Minute] = [Minute] + 1,
+	[Second] = 0
+WHERE [Second] = 60 AND [Minute] < 59
+
+
+-- Find key duplicates
+
+SELECT dbo.fFrameID(obs.ObservatoryID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0))), *
+FROM [Frame_Load]
+INNER JOIN [Observatory] obs ON obs.Name = Frame_Load.Observatory
+WHERE dbo.fFrameID(obs.ObservatoryID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0))) IN
+(
+	SELECT dbo.fFrameID(obs.ObservatoryID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0)))
+	FROM [Frame_Load]
+	INNER JOIN [Observatory] obs ON obs.Name = Frame_Load.Observatory
+	GROUP BY dbo.fFrameID(obs.ObservatoryID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0)))
+	HAVING COUNT(*) > 2
+)
+ORDER BY 1
+
+GO
+
 -- Merge frame table
 
 -- TRUNCATE TABLE [Frame]
 
+WITH q AS
+(
+	SELECT
+		--ROW_NUMBER() OVER (PARTITION BY dbo.fFrameID(obs.ObservatoryID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0))) ORDER BY B0) rn,
+		dbo.fFrameID(obs.ObservatoryID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0))) AS FrameID,
+		DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0) [Time],
+		dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0)) [JD],
+		obs.ObservatoryID,
+		[Proj_Area_U], [Proj_Area_UP], [Area_U], [Area_UP],
+		[P0], [B0]
+	FROM [Frame_Load]
+	INNER JOIN [Observatory] obs ON obs.Name = Frame_Load.Observatory
+)
 INSERT [Frame] WITH (TABLOCKX)
 	([FrameID],
 	 [Time],
@@ -80,14 +125,14 @@ INSERT [Frame] WITH (TABLOCKX)
 	 [Proj_Area_U], [Proj_Area_UP], [Area_U], [Area_UP],
 	 [P0], [B0])
 SELECT
-	dbo.fFrameID(obs.ObservatoryID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0))),
-	DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0),
-	dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0)),
-	obs.ObservatoryID,
+	[FrameID],
+	[Time],
+	[JD],
+	[ObservatoryID],
 	[Proj_Area_U], [Proj_Area_UP], [Area_U], [Area_UP],
 	[P0], [B0]
-FROM [Frame_Load]
-INNER JOIN [Observatory] obs ON obs.Name = Frame_Load.Observatory
+FROM q
+--WHERE rn = 1
 
 GO
 
@@ -176,7 +221,6 @@ SELECT DISTINCT
 FROM [dbo].[Group_Load]
 INNER JOIN Observatory obs ON obs.Name = [Observatory]
 CROSS APPLY BestDR7.dbo.fHtmEqToXyz(lon, lat) cc
---WHERE FrameID NOT IN (54794257, 55594054)		-- delete if fixed
 
 GO
 

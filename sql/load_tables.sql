@@ -204,7 +204,7 @@ GO
 
 INSERT INTO [dbo].[Group] WITH (TABLOCKX)
 	(
-	[GroupID], [GroupRev], [FrameID],
+	[GroupID], [GroupRev], [FrameID], [Time], [JD],
 	[Proj_Area_U], [Proj_Area_UP], [Area_U], [Area_UP],
 	[Lat], [Lon], [LCM], [Polar_Angle], [Polar_Radius],
 	[B_U], [B_UP],
@@ -212,14 +212,15 @@ INSERT INTO [dbo].[Group] WITH (TABLOCKX)
 	)
 SELECT DISTINCT
 	[GroupID], [GroupRev],
-	dbo.fFrameID(obs.ObservatoryID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0))),
-	[Proj_Area_U], [Proj_Area_UP], [Area_U], [Area_UP],
+	f.FrameID, f.[Time], f.[JD],
+	g.[Proj_Area_U], g.[Proj_Area_UP], g.[Area_U], g.[Area_UP],
 	[Lat], [Lon], [LCM], [Polar_Angle], [Polar_Radius],
 	NULL,	-- B_U
 	NULL,	-- B_UP
 	cc.x, cc.y, cc.z, BestDR7.dbo.fHtmEq(lon, lat)
-FROM [dbo].[Group_Load]
+FROM [dbo].[Group_Load] g
 INNER JOIN Observatory obs ON obs.Name = [Observatory]
+INNER JOIN [Frame] f ON f.FrameID = dbo.fFrameID(obs.ObservatoryID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0)))
 CROSS APPLY BestDR7.dbo.fHtmEqToXyz(lon, lat) cc
 
 GO
@@ -242,7 +243,7 @@ CREATE TABLE [Spot_Load]
 	[Second] int NOT NULL,
 	[GroupID] int NOT NULL,
 	[GroupRev] varchar(2) NOT NULL,
-	[Number] tinyint NOT NULL,
+	[SpotID] tinyint NOT NULL,
 	[Proj_Area_U] real NULL,
 	[Proj_Area_UP] real NULL,
 	[Area_U] real NULL,
@@ -290,21 +291,22 @@ WHERE [Second] = 60 AND [Minute] < 59
 
 INSERT INTO [dbo].[Spot] WITH (TABLOCKX)
 	(
-	[FrameID], [GroupID], [GroupRev], [Number],
+	[FrameID], [Time], [JD], [GroupID], [GroupRev], [SpotID],
 	[Proj_Area_U], [Proj_Area_UP], [Area_U], [Area_UP],
 	[Lat], [Lon], [LCM], [Polar_Angle], [Polar_Radius],
 	[B_U], [B_UP],
 	[CX], [CY], [CZ], [HtmID]
 	)
 SELECT DISTINCT 
-    dbo.fFrameID(obs.ObservatoryID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0))),
-	[GroupID], [GroupRev], [Number],
-	[Proj_Area_U], [Proj_Area_UP], [Area_U], [Area_UP],
+    f.FrameID, f.[Time], f.[JD],
+	[GroupID], [GroupRev], [SpotID],
+	s.[Proj_Area_U], s.[Proj_Area_UP], s.[Area_U], s.[Area_UP],
 	[Lat], [Lon], [LCM], [Polar_Angle], [Polar_Radius],
 	NULL, NULL, --[B_U], [B_UP],
 	cc.x, cc.y, cc.z, BestDR7.dbo.fHtmEq(lon, lat)
-FROM [Spot_Load]
+FROM [Spot_Load] s
 INNER JOIN Observatory obs ON obs.Name = [Observatory]
+INNER JOIN [Frame] f ON f.FrameID = dbo.fFrameID(obs.ObservatoryID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0)))
 CROSS APPLY BestDR7.dbo.fHtmEqToXyz(lon, lat) cc
 
 GO

@@ -52,6 +52,8 @@ CREATE TABLE [Group]
 	[GroupID] int NOT NULL,			--/ <column>NOAA ID of the spot group</column>
 	[GroupRev] varchar(2) NOT NULL,	--/ <column>Revised group ID extension</column>
 	[FrameID] int NOT NULL,			--/ <column>Reference to the frame</column>
+	[Time] datetime2 NOT NULL,		--/ <column>Time of observation (UTC)</column>
+	[JD] float NOT NULL,			--/ <column>Julian Date of observation</column>
 	[Proj_Area_U] real NULL,		--/ <column unit="">Total projected area of the Umbra of the spots of the group</column>
 	[Proj_Area_UP] real NULL,		--/ <column unit="">Total projected area of the Umbra and the Penumbra of the spots of the group</column>
 	[Area_U] real NULL,				--/ <column unit="">Total corrected area of the Umbra of the spots of the group</column>
@@ -86,9 +88,11 @@ CREATE TABLE [Spot]
 --/ <summary>Contains info on individual spots</summary>
 --/ <remarks></remarks>
 	[FrameID] int NOT NULL,			--/ <column>Reference to the frame</column>
+	[Time] datetime2 NOT NULL,		--/ <column>Time of observation (UTC)</column>
+	[JD] float NOT NULL,			--/ <column>Julian Date of observation</column>
 	[GroupID] int NOT NULL,			--/ <column>Reference to the group (NOAA standard)</column>
 	[GroupRev] varchar(2) NOT NULL,	--/ <column>Revised group ID extension</column>
-	[Number] tinyint NOT NULL,		--/ <column>Unique number of spot within the group</column>
+	[SpotID] tinyint NOT NULL,		--/ <column>Unique number of spot within the group</column>
 	[Proj_Area_U] real NULL,		--/ <column unit="">Projected area of the Umbra</column>
 	[Proj_Area_UP] real NULL,		--/ <column unit="">Projected area of the Umbra and Penumbra</column>
 	[Area_U] real NULL,				--/ <column unit="">Corrected area of the Umbra</column>
@@ -110,7 +114,7 @@ CREATE TABLE [Spot]
 		[FrameID],
 		[GroupID],
 		[GroupRev],
-		[Number]
+		[SpotID]
 	)  ON [PRIMARY]
 ) ON [PRIMARY]
 

@@ -36,3 +36,17 @@ BEGIN
 	RETURN 0x1000000 * @ObservatoryID + FLOOR((@JD - 2400000.5) * 100)
 END
 
+GO
+
+
+CREATE FUNCTION fObservatoryIDFromFrameID
+(
+	@FrameID int
+)
+RETURNS int
+AS
+BEGIN
+	RETURN @FrameID / 0x1000000
+END
+
+GO

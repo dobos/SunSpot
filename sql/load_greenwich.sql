@@ -1,3 +1,5 @@
+-- Load data into temporary table
+
 CREATE TABLE Load_Greenwich
 (
 	Year int,
@@ -66,3 +68,126 @@ END
 
 
 */
+
+
+GO
+
+--==========================================================
+-- Verify data
+
+-- Find duplicate group IDs
+
+
+WITH q AS
+(
+	SELECT 
+		*,
+		astro.ConvertTimePartsToJd(year, month, day, 0, 0, 0, 0) + time / 1000.0 AS JD,
+		CASE
+			WHEN year <= 1976 THEN 100
+			WHEN year > 1976 THEN 101
+		END AS ObservatoryID
+	FROM Load_Greenwich
+)
+SELECT 
+	GroupID,
+	GroupRev + GroupType,
+	dbo.fFrameID(ObservatoryID, JD) AS FrameID,
+	COUNT(*)
+FROM q
+GROUP BY GroupID,
+	GroupRev + GroupType,
+	dbo.fFrameID(ObservatoryID, JD)
+HAVING COUNT(*) > 1
+
+-- Fix duplicates
+
+SELECT * FROM Load_Greenwich
+WHERE GroupID = 1962 AND Day = 30
+
+UPDATE Load_Greenwich
+SET GroupRev = 'B'
+WHERE GroupID = 1962 AND Day = 30 AND Proj_Area_UP = 105
+
+SELECT * FROM Load_Greenwich
+WHERE GroupID = 8894 AND Day = 29
+
+UPDATE Load_Greenwich
+SET GroupRev = 'B'
+WHERE GroupID = 8894 AND Day = 29 AND Proj_Area_UP = 16
+
+
+--==========================================================
+-- Merge into destination tables
+
+
+-- Generate Observatory entries
+
+INSERT [Observatory]
+	([Name], [ObservatoryID])
+VALUES
+	('GreenwichPre1976', 100),
+	('GreenwichPost1976', 101)
+
+GO
+
+
+-- Merge in groups
+
+WITH q AS
+(
+	SELECT 
+		*,
+		astro.ConvertTimePartsToJd(year, month, day, 0, 0, 0, 0) + time / 1000.0 AS JD,
+		CASE
+			WHEN year <= 1976 THEN 100
+			WHEN year > 1976 THEN 101
+		END AS ObservatoryID
+	FROM Load_Greenwich
+)
+INSERT INTO [dbo].[Group] WITH (TABLOCKX)
+(
+	[GroupID], [GroupRev], [FrameID], [Time], [JD],
+	[Proj_Area_U], [Proj_Area_UP], [Area_U], [Area_UP],
+	[Lat], [Lon], [LCM], [Polar_Angle], [Polar_Radius],
+	[B_U], [B_UP],
+	[CX], [CY], [CZ], [HtmID]
+)
+SELECT DISTINCT
+	GroupID,
+	GroupRev + GroupType,
+	dbo.fFrameID(ObservatoryID, JD) AS FrameID,
+	astro.ConvertTimeJdToTai(JD),
+	JD,
+	Proj_Area_U,
+	Proj_Area_UP,
+	Area_U,
+	Area_UP,
+	Lat,
+	Lon,
+	LCM,
+	Polar_Angle,
+	Polar_Radius,
+	NULL, NULL,
+	cc.x, cc.y, cc.z,
+	BestDR7.dbo.fHtmEq(lon, lat)
+FROM q
+CROSS APPLY BestDR7.dbo.fHtmEqToXyz(lon, lat) cc
+WHERE GroupID IS NOT NULL
+
+-- Generate frames for groups
+
+INSERT Frame WITH (TABLOCKX)
+SELECT
+	FrameID, 
+	MAX(time),
+	MAX(JD),
+	dbo.fObservatoryIDFromFrameID(FrameID),
+	SUM(Proj_Area_U),
+	SUM(Proj_Area_UP),
+	SUM(Area_U),
+	SUM(Area_UP),
+	0, 0
+FROM [Group]
+WHERE dbo.fObservatoryIDFromFrameID(FrameID) IN (100, 101)
+GROUP BY FrameID, dbo.fObservatoryIDFromFrameID(FrameID)

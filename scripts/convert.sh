@@ -1,4 +1,6 @@
 #!/bin/sh
+# Convert DPD data into file ready for database ingestion
+
 input="$1"
 
 # create frame file and filter out rows starting with d or h

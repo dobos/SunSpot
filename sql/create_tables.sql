@@ -50,7 +50,7 @@ CREATE TABLE [Group]
 --/ <summary>Contains info on spot groups</summary>
 --/ <remarks></remarks>
 	[GroupID] int NOT NULL,			--/ <column>NOAA ID of the spot group</column>
-	[GroupRev] varchar(2) NOT NULL,	--/ <column>Revised group ID extension</column>
+	[GroupRev] varchar(5) NOT NULL,	--/ <column>Revised group ID extension</column>
 	[FrameID] int NOT NULL,			--/ <column>Reference to the frame</column>
 	[Time] datetime2 NOT NULL,		--/ <column>Time of observation (UTC)</column>
 	[JD] float NOT NULL,			--/ <column>Julian Date of observation</column>

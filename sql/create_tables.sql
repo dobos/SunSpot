@@ -31,8 +31,9 @@ CREATE TABLE [Frame]
 	[Proj_Area_UP] real NULL,		--/ <column unit="">Total projected area of the Umbra and the Penumbra of the spots</column>
 	[Area_U] real NULL,				--/ <column unit="">Total corrected area of the Umbra of the spots</column>
 	[Area_UP] real NULL,			--/ <column unit="">Total corrected area of the Umbra and the Penumbra of the spots</column>
-	[P0] real NOT NULL,
-	[B0] real NOT NULL,
+	[Pos_Angle] real NOT NULL,
+	[Lat] real NOT NULL,
+	[Lon] real NOT NULL
 
 	CONSTRAINT [PK_Frame] PRIMARY KEY CLUSTERED 
 	(
@@ -64,7 +65,7 @@ CREATE TABLE [Group]
 	[Polar_Angle] real NOT NULL,	--/ <column unit="deg">Polar angle of the weigted center of the group</column>
 	[Polar_Radius] real NOT NULL,	--/ <column unit="R_Sol">Polar radius of the weigted center of the group</column>
 	[B_U] real NULL,				--/ <column></column>
-	[B_UP] real NULL,				--/ <column></column>
+	[B_P] real NULL,				--/ <column></column>
 	[CX] real NOT NULL,				--/ <column>Cartesian X coordinate computed from lat and lon</column>
 	[CY] real NOT NULL,				--/ <column>Cartesian Y coordinate computed from lat and lon</column>
 	[CZ] real NOT NULL,				--/ <column>Cartesian Z coordinate computed from lat and lon</column>
@@ -92,7 +93,7 @@ CREATE TABLE [Spot]
 	[JD] float NOT NULL,			--/ <column>Julian Date of observation</column>
 	[GroupID] int NOT NULL,			--/ <column>Reference to the group (NOAA standard)</column>
 	[GroupRev] varchar(2) NOT NULL,	--/ <column>Revised group ID extension</column>
-	[SpotID] tinyint NOT NULL,		--/ <column>Unique number of spot within the group</column>
+	[SpotID] smallint NOT NULL,		--/ <column>Unique number of spot within the group</column>
 	[Proj_Area_U] real NULL,		--/ <column unit="">Projected area of the Umbra</column>
 	[Proj_Area_UP] real NULL,		--/ <column unit="">Projected area of the Umbra and Penumbra</column>
 	[Area_U] real NULL,				--/ <column unit="">Corrected area of the Umbra</column>
@@ -103,7 +104,7 @@ CREATE TABLE [Spot]
 	[Polar_Angle] real NOT NULL,	--/ <column unit="deg">Projected polar angle of the center of the spot</column>
 	[Polar_Radius] real NOT NULL,	--/ <column unit="R_Sol">Projected polar radius of the center of the spot</column>
 	[B_U] real NULL,				--/ <column unit="">Magnetic field in the Umbra</column>
-	[B_UP] real NULL,				--/ <column unit="">Magnetic field in the Umbra and Penumbra</column>
+	[B_P] real NULL,				--/ <column unit="">Magnetic field in the Umbra and Penumbra</column>
 	[CX] real NOT NULL,				--/ <column>Cartesian X coordinate computed from lat and lon</column>
 	[CY] real NOT NULL,				--/ <column>Cartesian Y coordinate computed from lat and lon</column>
 	[CZ] real NOT NULL,				--/ <column>Cartesian Z coordinate computed from lat and lon</column>

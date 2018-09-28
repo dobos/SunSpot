@@ -1,3 +1,7 @@
+INSERT Dataset
+VALUES
+	(1, 'DPD')
+
 --==========================================================
 -- Create observatories
 
@@ -25,19 +29,23 @@ VALUES
 	('NNNN', 15),
 	('RAME', 16),
 	('ROME', 17),
-	('SOHO', 18),
 	('TASH', 19),
 	('UCCL', 20),
 	('USSU', 21),
-	('SHMI', 22)
-
-GO
+	('SOHO', 110),
+	('SHMI', 120)
 
 --==========================================================
 -- Load Frame table
 
-CREATE TABLE [Frame_Load]
+IF OBJECT_ID('[load].[DPD_Frame]') IS NOT NULL
+DROP TABLE [load].[DPD_Frame]
+
+GO
+
+CREATE TABLE [load].[DPD_Frame]
 (
+	[Dummy0] char NOT NULL,
 	[Year] int NOT NULL,
 	[Month] int NOT NULL,
 	[Day] int NOT NULL,
@@ -49,15 +57,15 @@ CREATE TABLE [Frame_Load]
 	[Proj_Area_UP] real NULL,
 	[Area_U] real NULL,
 	[Area_UP] real NULL,
-	[JD] real NOT NULL,
+	[JD] float NOT NULL,
 	[P0] real NOT NULL,
 	[B0] real NOT NULL
 ) ON [LOAD]
 
 GO
 
-BULK INSERT [Frame_Load]
-FROM 'C:\data\Temp\vo\napfolt\frameall.txt' 
+BULK INSERT [load].[DPD_Frame]
+FROM 'C:\Data\Raid6_0\temp\dobos\dpd_frame.txt' 
 WITH ( 
 	--LASTROW = 7800,			-- change this when file becomes OK
 	DATAFILETYPE = 'char',
@@ -71,13 +79,13 @@ GO
 -- Verify invalid dates
 
 SELECT *
-FROM [Frame_Load]
+FROM [load].[DPD_Frame]
 WHERE [Hour] < 0 OR [Hour] > 23 OR [Minute] < 0 OR [Minute] > 59 OR [Second] < 0 OR [Second] > 59
 
 
 -- Fix rows with second = 60
 
-UPDATE [Frame_Load]
+UPDATE [load].[DPD_Frame]
 SET [Minute] = [Minute] + 1,
 	[Second] = 0
 WHERE [Second] = 60 AND [Minute] < 59
@@ -85,18 +93,27 @@ WHERE [Second] = 60 AND [Minute] < 59
 
 -- Find key duplicates
 
-SELECT dbo.fFrameID(obs.ObservatoryID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0))), *
-FROM [Frame_Load]
-INNER JOIN [Observatory] obs ON obs.Name = Frame_Load.Observatory
-WHERE dbo.fFrameID(obs.ObservatoryID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0))) IN
+SELECT dbo.fFrameID(d.DatasetID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0))), *
+FROM [load].[DPD_Frame]
+INNER JOIN Dataset d ON d.Name = 'DPD'
+WHERE dbo.fFrameID(d.DatasetID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0))) IN
 (
-	SELECT dbo.fFrameID(obs.ObservatoryID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0)))
-	FROM [Frame_Load]
-	INNER JOIN [Observatory] obs ON obs.Name = Frame_Load.Observatory
-	GROUP BY dbo.fFrameID(obs.ObservatoryID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0)))
+	SELECT dbo.fFrameID(d.DatasetID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0)))
+	FROM [load].[DPD_Frame]
+	INNER JOIN Dataset d ON d.Name = 'DPD'
+	GROUP BY dbo.fFrameID(d.DatasetID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0)))
 	HAVING COUNT(*) > 2
 )
 ORDER BY 1
+
+--
+
+SELECT f.*, d.*
+FROM [load].[DPD_Frame] d
+INNER JOIN Dataset ON Dataset.Name = 'DPD'
+INNER LOOP JOIN dbo.Frame f ON dbo.fFrameID(Dataset.DatasetID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0))) = f.FrameID
+
+-- These are SOHO observation that are used to patch missing obs from Debrecen
 
 GO
 
@@ -108,44 +125,59 @@ WITH q AS
 (
 	SELECT
 		--ROW_NUMBER() OVER (PARTITION BY dbo.fFrameID(obs.ObservatoryID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0))) ORDER BY B0) rn,
-		dbo.fFrameID(obs.ObservatoryID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0))) AS FrameID,
+		dbo.fFrameID(ds.DatasetID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0))) AS FrameID,
 		DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0) [Time],
 		dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0)) [JD],
 		obs.ObservatoryID,
 		[Proj_Area_U], [Proj_Area_UP], [Area_U], [Area_UP],
 		[P0], [B0]
-	FROM [Frame_Load]
-	INNER JOIN [Observatory] obs ON obs.Name = Frame_Load.Observatory
+	FROM [load].[DPD_Frame]
+	INNER JOIN [Observatory] obs ON obs.Name = [load].[DPD_Frame].Observatory
+	INNER JOIN [Dataset] ds ON ds.Name = 'DPD'
 )
 INSERT [Frame] WITH (TABLOCKX)
 	([FrameID],
 	 [Time],
 	 [JD],
+	 [DatasetID],
 	 [ObservatoryID],
 	 [Proj_Area_U], [Proj_Area_UP], [Area_U], [Area_UP],
-	 [P0], [B0])
+	 Pos_Angle,
+	 Lat, Lon)
 SELECT
 	[FrameID],
 	[Time],
 	[JD],
+	'DPD',
 	[ObservatoryID],
 	[Proj_Area_U], [Proj_Area_UP], [Area_U], [Area_UP],
-	[P0], [B0]
+	-9999, -9999, -9999
 FROM q
---WHERE rn = 1
 
 GO
 
-DROP TABLE [Frame_Load]
+SELECT COUNT(*)
+FROM [Frame]
+WHERE dbo.fDatasetIDFromFrameID(FrameID) = 1
+-- 15980
+
+GO
+
+DROP TABLE [load].[DPD_Frame]
 
 GO
 
 --==========================================================
 -- Load Group table
 
-CREATE TABLE [Group_Load]
+IF OBJECT_ID('[load].[DPD_Group]') IS NOT NULL
+DROP TABLE [load].[DPD_Group]
+
+GO
+
+CREATE TABLE [load].[DPD_Group]
 (
-	[Observatory] char(4) NOT NULL,
+	[Dummy] char(1) NOT NULL,
 	[Year] int NOT NULL,
 	[Month] int NOT NULL,
 	[Day] int NOT NULL,
@@ -169,8 +201,8 @@ CREATE TABLE [Group_Load]
 
 GO
 
-BULK INSERT Group_Load
-FROM 'C:\data\Temp\vo\napfolt\groupall.txt' 
+BULK INSERT [load].[DPD_Group]
+FROM 'C:\Data\Raid6_0\temp\dobos\dpd_group.txt' 
 WITH ( 
 	CODEPAGE = 'ACP',
    DATAFILETYPE = 'char',
@@ -179,19 +211,21 @@ WITH (
    TABLOCK
 )
 
+-- 5 errors due to invalid rows in files
+
 GO
 
 -- Verify invalid dates
 
 SELECT *
-FROM [Group_Load]
+FROM [load].[DPD_Group]
 WHERE [Hour] < 0 OR [Hour] > 23 OR [Minute] < 0 OR [Minute] > 59 OR [Second] < 0 OR [Second] > 59
 
 GO
 
 -- Fix rows with second = 60
 
-UPDATE [Group_Load]
+UPDATE [load].[DPD_Group]
 SET [Minute] = [Minute] + 1,
 	[Second] = 0
 WHERE [Second] = 60 AND [Minute] < 59
@@ -207,34 +241,42 @@ INSERT INTO [dbo].[Group] WITH (TABLOCKX)
 	[GroupID], [GroupRev], [FrameID], [Time], [JD],
 	[Proj_Area_U], [Proj_Area_UP], [Area_U], [Area_UP],
 	[Lat], [Lon], [LCM], [Polar_Angle], [Polar_Radius],
-	[B_U], [B_UP],
+	[B_U], [B_P],
 	[CX], [CY], [CZ], [HtmID]
 	)
 SELECT DISTINCT
 	[GroupID], [GroupRev],
 	f.FrameID, f.[Time], f.[JD],
 	g.[Proj_Area_U], g.[Proj_Area_UP], g.[Area_U], g.[Area_UP],
-	[Lat], [Lon], [LCM], [Polar_Angle], [Polar_Radius],
+	g.[Lat], g.[Lon], [LCM], [Polar_Angle], [Polar_Radius],
 	NULL,	-- B_U
 	NULL,	-- B_UP
-	cc.x, cc.y, cc.z, BestDR7.dbo.fHtmEq(lon, lat)
-FROM [dbo].[Group_Load] g
-INNER JOIN Observatory obs ON obs.Name = [Observatory]
-INNER JOIN [Frame] f ON f.FrameID = dbo.fFrameID(obs.ObservatoryID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0)))
-CROSS APPLY BestDR7.dbo.fHtmEqToXyz(lon, lat) cc
+	cc.x, cc.y, cc.z, SkyQuery_CODE.htmid.FromEq(g.lon, g.lat)
+FROM [load].[DPD_Group] g
+INNER JOIN [Dataset] ds ON ds.Name = 'DPD'
+INNER JOIN [Frame] f ON f.FrameID = dbo.fFrameID(ds.DatasetID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0)))
+CROSS APPLY SkyQuery_CODE.point.EqToXyz(g.lon, g.lat) cc
 
 GO
 
-DROP TABLE Group_Load
+SELECT COUNT(*) FROM [load].[DPD_Group]
+-- 111198
+
+GO
+
+DROP TABLE [load].[DPD_Group]
 
 GO
 
 --==========================================================
 -- Load Spot table
 
-CREATE TABLE [Spot_Load]
+DROP TABLE [load].[DPD_Spot]
+
+
+CREATE TABLE [load].[DPD_Spot]
 (
-	[Observatory] char(4) NOT NULL,
+	[Dummy0] char(1) NOT NULL,
 	[Year] int NOT NULL,
 	[Month] int NOT NULL,
 	[Day] int NOT NULL,
@@ -260,8 +302,8 @@ CREATE TABLE [Spot_Load]
 
 GO
 
-BULK INSERT Spot_Load
-FROM 'C:\data\Temp\vo\napfolt\spotall.txt' 
+BULK INSERT [load].[DPD_Spot]
+FROM 'C:\Data\Raid6_0\temp\dobos\dpd_spot.txt' 
 WITH ( 
 	CODEPAGE = 'ACP',
    DATAFILETYPE = 'char',
@@ -269,20 +311,21 @@ WITH (
    ROWTERMINATOR = '0x0A',
    TABLOCK
 )
+-- 976206
 
 GO
 
 -- Verify invalid dates
 
 SELECT *
-FROM Spot_Load
+FROM [load].[DPD_Spot]
 WHERE [Hour] < 0 OR [Hour] > 23 OR [Minute] < 0 OR [Minute] > 59 OR [Second] < 0 OR [Second] > 59
 
 GO
 
 -- Fix rows with second = 60
 
-UPDATE Spot_Load
+UPDATE [load].[DPD_Spot]
 SET [Minute] = [Minute] + 1,
 	[Second] = 0
 WHERE [Second] = 60 AND [Minute] < 59
@@ -294,27 +337,31 @@ INSERT INTO [dbo].[Spot] WITH (TABLOCKX)
 	[FrameID], [Time], [JD], [GroupID], [GroupRev], [SpotID],
 	[Proj_Area_U], [Proj_Area_UP], [Area_U], [Area_UP],
 	[Lat], [Lon], [LCM], [Polar_Angle], [Polar_Radius],
-	[B_U], [B_UP],
+	[B_U], [B_P],
 	[CX], [CY], [CZ], [HtmID]
 	)
 SELECT DISTINCT 
     f.FrameID, f.[Time], f.[JD],
 	[GroupID], [GroupRev], [SpotID],
 	s.[Proj_Area_U], s.[Proj_Area_UP], s.[Area_U], s.[Area_UP],
-	[Lat], [Lon], [LCM], [Polar_Angle], [Polar_Radius],
+	s.[Lat], s.[Lon], [LCM], [Polar_Angle], [Polar_Radius],
 	NULL, NULL, --[B_U], [B_UP],
-	cc.x, cc.y, cc.z, BestDR7.dbo.fHtmEq(lon, lat)
-FROM [Spot_Load] s
-INNER JOIN Observatory obs ON obs.Name = [Observatory]
-INNER JOIN [Frame] f ON f.FrameID = dbo.fFrameID(obs.ObservatoryID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0)))
-CROSS APPLY BestDR7.dbo.fHtmEqToXyz(lon, lat) cc
+	cc.x, cc.y, cc.z, SkyQuery_CODE.htmid.FromEq(s.lon, s.lat)
+FROM [load].[DPD_Spot] s
+INNER JOIN [Dataset] ds ON ds.Name = 'DPD'
+INNER JOIN [Frame] f ON f.FrameID = dbo.fFrameID(ds.DatasetID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0)))
+CROSS APPLY SkyQuery_CODE.point.EqToXyz(s.lon, s.lat) cc
+
+-- 972395
 
 GO
 
-DROP TABLE [Spot_Load]
+DROP TABLE [load].[DPD_Spot]
 
 GO
-
-
 
 CHECKPOINT
+
+GO
+
+-----

@@ -1,29 +1,27 @@
 INSERT Dataset
 VALUES
-	(4, 'SDO')
+	(3, 'SDD')
 
-GO
-
-----
+--
 
 INSERT [Observatory]
 	([Name], [ObservatoryID])
 VALUES
-	('SHMI', 120)
+	('SOHO', 110)
 
 GO
 
 --==========================================================
 -- Load Frame table
 
-IF OBJECT_ID('[load].[SDO_Frame]') IS NOT NULL
-DROP TABLE [load].[SDO_Frame]
+IF OBJECT_ID('[load].[SDD_Frame]') IS NOT NULL
+DROP TABLE [load].[SDD_Frame]
 
 GO
 
-CREATE TABLE [load].[SDO_Frame]
+CREATE TABLE [load].[SDD_Frame]
 (
-	[ObservatoryID] int NOT NULL,
+	[Dummy0] char(1) NOT NULL,
 	[Year] int NOT NULL,
 	[Month] int NOT NULL,
 	[Day] int NOT NULL,
@@ -31,24 +29,19 @@ CREATE TABLE [load].[SDO_Frame]
 	[Minute] int NOT NULL,
 	[Second] real NOT NULL,
 	[Observatory] varchar(4) NOT NULL,
-	[GroupNum] smallint NOT NULL,
 	[Proj_Area_U] real NULL,
 	[Proj_Area_UP] real NULL,
 	[Area_U] real NULL,
 	[Area_UP] real NULL,
 	[JD] real NOT NULL,
 	[Pos_Angle] real NOT NULL,
-	[Lat] real NOT NULL,
-	[Lon] real NOT NULL,
-	[Dummy1] int NOT NULL,
-	[Dummy2] int NOT NULL,
-	[Dummy3] int NOT NULL,
+	[Lat] real NOT NULL
 ) ON [LOAD]
 
 GO
 
-BULK INSERT [load].[SDO_Frame]
-FROM 'C:\Data\Raid6_0\temp\dobos\sdo_frame.txt'
+BULK INSERT [load].[SDD_Frame]
+FROM 'C:\Data\Raid6_0\temp\dobos\sdd_frame.txt'
 WITH ( 
 	--LASTROW = 7800,			-- change this when file becomes OK
 	DATAFILETYPE = 'char',
@@ -56,8 +49,6 @@ WITH (
 	ROWTERMINATOR = '0x0A',
 	TABLOCK
 )
-
--- (40470 rows affected)
 
 GO
 
@@ -68,12 +59,13 @@ a AS
 		dbo.fFrameID(ds.DatasetID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0))) AS FrameID,
 		DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0) [Time],
 		dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0)) [JD],
-		ds.DatasetID,
-		ObservatoryID,
+		ds.[DatasetID],
+		obs.[ObservatoryID],
 		[Proj_Area_U], [Proj_Area_UP], [Area_U], [Area_UP],
-		[Pos_Angle], [Lat], [Lon]
-	FROM [load].[SDO_Frame]
-	INNER JOIN Dataset ds ON ds.Name = 'SDO'
+		[Pos_Angle], [Lat], -9999 AS [Lon]
+	FROM [load].[SDD_Frame]
+	INNER JOIN Observatory obs ON obs.Name = 'SOHO'
+	INNER JOIN Dataset ds ON ds.Name = 'SDD'
 ),
 b AS
 (
@@ -101,28 +93,25 @@ SELECT
 FROM b
 WHERE rn = 1
 
--- (40469 rows affected)
-
-SELECT COUNT(*) FROM [Frame]
-WHERE dbo.fDatasetIDFromFrameID(FrameID) = 4
-
--- 40469
+-- (41332 rows affected)
 
 GO
 
-DROP TABLE [load].[SDO_Frame]
+--
+
+DROP TABLE [load].[SDD_Frame]
 
 GO
 
 --==========================================================
 -- Load Group table
 
-IF OBJECT_ID('[load].SDO_Group') IS NOT NULL
-DROP TABLE [load].SDO_Group
+IF OBJECT_ID('[load].SDD_Group') IS NOT NULL
+DROP TABLE [load].SDD_Group
 
-CREATE TABLE [load].SDO_Group
+CREATE TABLE [load].SDD_Group
 (
-	[ObservatoryID] tinyint NOT NULL,
+	[Dummy0] char(1) NOT NULL,
 	[Year] int NOT NULL,
 	[Month] int NOT NULL,
 	[Day] int NOT NULL,
@@ -131,7 +120,6 @@ CREATE TABLE [load].SDO_Group
 	[Second] real NOT NULL,
 	[GroupID] int NOT NULL,
 	[GroupRev] varchar(2) NOT NULL,
-	[GroupNum] smallint NOT NULL,
 	[Proj_Area_U] real NULL,
 	[Proj_Area_UP] real NULL,
 	[Area_U] real NULL,
@@ -147,11 +135,11 @@ CREATE TABLE [load].SDO_Group
 
 GO
 
-TRUNCATE TABLE [load].SDO_Group
+TRUNCATE TABLE [load].SDD_Group
 GO
 
-BULK INSERT [load].SDO_Group
-FROM 'C:\Data\Raid6_0\temp\dobos\sdo_group.txt' 
+BULK INSERT [load].SDD_Group
+FROM 'C:\Data\Raid6_0\temp\dobos\sdd_group.txt' 
 WITH ( 
 	CODEPAGE = 'ACP',
    DATAFILETYPE = 'char',
@@ -160,11 +148,7 @@ WITH (
    TABLOCK
 )
 
--- (532928 rows affected)
-
-SELECT COUNT(*) FROM [load].SDO_Group
-
--- 532928
+-- (349271 rows affected)
 
 GO
 
@@ -184,28 +168,36 @@ SELECT DISTINCT
 	B_U,
 	B_P,
 	cc.x, cc.y, cc.z, SkyQuery_CODE.htmid.FromEq(g.lon, g.lat)
-FROM [load].SDO_Group g
-INNER JOIN Dataset ds ON ds.Name = 'SDO'
+FROM [load].SDD_Group g
+INNER JOIN Dataset ds ON ds.Name = 'SDD'
 INNER LOOP JOIN [Frame] f ON f.FrameID = dbo.fFrameID(ds.DatasetID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0)))
 CROSS APPLY SkyQuery_CODE.point.EqToXyz(g.lon, g.lat) cc
 
--- (532913 rows affected)
+-- (290378 rows affected)
+
+SELECT COUNT(*)
+FROM [dbo].[Group]
+WHERE dbo.fDatasetIDFromFrameID(FrameID) = 3
+
+-- 290378
+
+--
 
 GO
 
-DROP TABLE [load].SDO_Group
+DROP TABLE [load].SDD_Group
 
 GO
 
 --==========================================================
 -- Load Spot table
 
-IF OBJECT_ID('[load].SDO_Spot') IS NOT NULL
-DROP TABLE [load].SDO_Spot
+IF OBJECT_ID('[load].SDD_Spot') IS NOT NULL
+DROP TABLE [load].SDD_Spot
 
-CREATE TABLE [load].SDO_Spot
+CREATE TABLE [load].SDD_Spot
 (
-	[ObservatoryID] tinyint NOT NULL,
+	[Dummy0] char(1) NOT NULL,
 	[Year] int NOT NULL,
 	[Month] int NOT NULL,
 	[Day] int NOT NULL,
@@ -230,11 +222,11 @@ CREATE TABLE [load].SDO_Spot
 
 GO
 
-TRUNCATE TABLE [load].SDO_Group
+TRUNCATE TABLE [load].SDD_Group
 GO
 
-BULK INSERT [load].SDO_Spot
-FROM 'C:\Data\Raid6_0\temp\dobos\sdo_spot.txt' 
+BULK INSERT [load].SDD_Spot
+FROM 'C:\Data\Raid6_0\temp\dobos\sdd_spot.txt' 
 WITH ( 
 	CODEPAGE = 'ACP',
    DATAFILETYPE = 'char',
@@ -243,14 +235,13 @@ WITH (
    TABLOCK
 )
 
--- 1 error during load due to corrupt file format
-
 GO
 
-SELECT COUNT(*) FROM load.SDO_Spot
+-- (2677827 rows affected)
 
--- 5630006
--- wc -l gives 5630008 rows
+SELECT COUNT(*) FROM load.SDD_Spot
+
+-- 2677827
 
 GO
 
@@ -263,17 +254,23 @@ INSERT INTO [dbo].[Spot] WITH (TABLOCKX)
 	[CX], [CY], [CZ], [HtmID]
 	)
 SELECT DISTINCT 
-    f.FrameID, f.[Time], f.[JD],
+    dbo.fFrameID(ds.DatasetID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0))), 
+	DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0) [Time],
+	dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0)) [JD],
 	[GroupID], [GroupRev], [SpotID],
 	s.[Proj_Area_U], s.[Proj_Area_UP], s.[Area_U], s.[Area_UP],
 	s.[Lat], s.[Lon], [LCM], [Polar_Angle], [Polar_Radius],
 	[B_U], [B_P],
 	cc.x, cc.y, cc.z, SkyQuery_CODE.htmid.FromEq(s.lon, s.lat)
-FROM [load].SDO_Spot s
-INNER JOIN Dataset ds ON ds.Name = 'SDO'
-INNER JOIN [Frame] f ON f.FrameID = dbo.fFrameID(ds.DatasetID, dbo.fJD(DATETIME2FROMPARTS([Year], [Month], [Day], [Hour], [Minute], [Second], 0, 0)))
+FROM [load].SDD_Spot s
+INNER JOIN [Dataset] ds ON ds.Name = 'SDD'
 CROSS APPLY SkyQuery_CODE.point.EqToXyz(s.lon, s.lat) cc
 
--- (5629827 rows affected)
+-- (2677827 rows affected)
+
+SELECT COUNT(*) FROM dbo.Spot
+WHERE dbo.fDatasetIDFromFrameID(FrameID) = 3
+
+-- 2677827
 
 GO

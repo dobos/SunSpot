@@ -2,29 +2,20 @@
 
 # Usage: ./convert_all <path to data files> <path to bulk-load file>
 
-outfile="$2/sdo_frame.txt"
+outfile="$2/gpr_frame.txt"
 echo -n > $outfile
 
-for file in $(ls $1/HMID*);
+for file in $(ls $1/dGPR*);
 do
   echo Converting $file
   cat $file | ./convert_frame.sh >> $outfile
 done
 
-outfile="$2/sdo_group.txt"
+outfile="$2/gpr_group.txt"
 echo -n > $outfile
 
-for file in $(ls $1/g*);
+for file in $(ls $1/gGPR*);
 do
   echo Converting $file
   cat $file | ./convert_group.sh >> $outfile
-done
-
-outfile="$2/sdo_spot.txt"
-echo -n > $outfile
-
-for file in $(ls $1/s*);
-do
-  echo Converting $file
-  cat $file | ./convert_spot.sh >> $outfile
 done

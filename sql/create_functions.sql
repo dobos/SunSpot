@@ -1,3 +1,8 @@
+IF OBJECT_ID('fJD') IS NOT NULL
+DROP FUNCTION fJD
+
+GO
+
 CREATE FUNCTION fJD
 (
 	@date datetime2
@@ -23,30 +28,62 @@ BEGIN
 END
 GO
 
+----
+
+IF OBJECT_ID('fFrameID') IS NOT NULL
+DROP FUNCTION fFrameID
+
+GO
 
 
 CREATE FUNCTION fFrameID
 (
-	@ObservatoryID int,
+	@DatasetID tinyint,
 	@JD float
 )
 RETURNS int
 AS
 BEGIN
-	RETURN 0x1000000 * @ObservatoryID + FLOOR((@JD - 2400000.5) * 100)
+	-- bit layout:
+	RETURN CAST(@DatasetID AS binary(1)) +
+		   CAST(CAST(FLOOR((@JD - 2400000.5) * 100) AS int) AS binary(3))
 END
 
 GO
 
+----
 
-CREATE FUNCTION fObservatoryIDFromFrameID
+IF OBJECT_ID('fDatasetIDFromFrameID') IS NOT NULL
+DROP FUNCTION fDatasetIDFromFrameID
+
+GO
+
+CREATE FUNCTION fDatasetIDFromFrameID
 (
 	@FrameID int
 )
-RETURNS int
+RETURNS tinyint
 AS
 BEGIN
-	RETURN @FrameID / 0x1000000
+	RETURN CAST(CAST((@FrameID & 0xFF000000) / 0x1000000 AS binary(1)) AS tinyint)
 END
 
 GO
+
+----
+
+/*
+SELECT CAST(CAST(FLOOR((2458388.89402 - 2400000.5) * 100) AS int) AS binary(4))
+SELECT CAST(CAST(FLOOR((2458388.89402 - 2400000.5) * 100) AS int) AS binary(8))
+
+SELECT dbo.fFrameID(1, 2458388.89402), CAST(dbo.fFrameID(1, 2458388.89402) AS binary(4))
+-- 22616055	0x015917F7
+
+SELECT CAST(0x78 AS int)
+
+SELECT CAST(CAST(0x44504478005917F7 AS bigint) & 0x000000FF00000000 AS binary(8))
+
+SELECT dbo.fDatasetIDFromFrameID(0x015917F7)
+
+----
+*/

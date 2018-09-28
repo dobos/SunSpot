@@ -1,3 +1,21 @@
+IF OBJECT_ID (N'[Dataset]', N'U') IS NOT NULL
+DROP TABLE [Dataset]
+
+CREATE TABLE [Dataset]
+(
+--/ <summary>Contains info on observatories</summary>
+--/ <remarks></remarks>
+	[DatasetID] tinyint NOT NULL,
+	[Name] varchar(3) NOT NULL   --/ <column>Unique ID of the data set</column>
+
+	CONSTRAINT [PK_Dataset] PRIMARY KEY CLUSTERED 
+	(
+		[DatasetID]
+	)  ON [PRIMARY]
+) ON [PRIMARY]
+
+GO
+
 IF OBJECT_ID (N'Observatory', N'U') IS NOT NULL
 DROP TABLE [Observatory]
 
@@ -23,9 +41,10 @@ CREATE TABLE [Frame]
 (
 --/ <summary>Contains info on observed frames</summary>
 --/ <remarks></remarks>
-	[FrameID] int NOT NULL,			--/ <column>Unique ID of the frame</column>
+	[FrameID] bigint NOT NULL,		--/ <column>Unique ID of the frame</column>
 	[Time] datetime2 NOT NULL,		--/ <column>Time of observation (UTC)</column>
 	[JD] float NOT NULL,			--/ <column>Julian Date of observation</column>
+	[DatasetID] char(3) NOT NULL,	--/ <column>ID of the data set</column>
 	[ObservatoryID] tinyint NOT NULL,--/ <column>ID of the observatory</column>
 	[Proj_Area_U] real NULL,		--/ <column unit="">Total projected area of the Umbra of the spots</column>
 	[Proj_Area_UP] real NULL,		--/ <column unit="">Total projected area of the Umbra and the Penumbra of the spots</column>
@@ -52,7 +71,7 @@ CREATE TABLE [Group]
 --/ <remarks></remarks>
 	[GroupID] int NOT NULL,			--/ <column>NOAA ID of the spot group</column>
 	[GroupRev] varchar(5) NOT NULL,	--/ <column>Revised group ID extension</column>
-	[FrameID] int NOT NULL,			--/ <column>Reference to the frame</column>
+	[FrameID] bigint NOT NULL,		--/ <column>Reference to the frame</column>
 	[Time] datetime2 NOT NULL,		--/ <column>Time of observation (UTC)</column>
 	[JD] float NOT NULL,			--/ <column>Julian Date of observation</column>
 	[Proj_Area_U] real NULL,		--/ <column unit="">Total projected area of the Umbra of the spots of the group</column>
@@ -88,7 +107,7 @@ CREATE TABLE [Spot]
 (
 --/ <summary>Contains info on individual spots</summary>
 --/ <remarks></remarks>
-	[FrameID] int NOT NULL,			--/ <column>Reference to the frame</column>
+	[FrameID] bigint NOT NULL,		--/ <column>Reference to the frame</column>
 	[Time] datetime2 NOT NULL,		--/ <column>Time of observation (UTC)</column>
 	[JD] float NOT NULL,			--/ <column>Julian Date of observation</column>
 	[GroupID] int NOT NULL,			--/ <column>Reference to the group (NOAA standard)</column>
